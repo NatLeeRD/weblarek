@@ -24,6 +24,9 @@ export interface IBuyer {
     address: string;
 }
 
+//added after 1st review
+export type IBuyerValidationErr = Partial<Record<keyof IBuyer, string>>;
+
 //added step4
 export interface IProductsResponse {
     total: number;

@@ -1,9 +1,14 @@
 //added
 
-import { IBuyer } from '../../types';
+import { IBuyer, IBuyerValidationErr } from '../../types';
 
 export class Buyer {
-    private data: Partial<IBuyer> = {};
+        private data: IBuyer = {
+        payment: null,
+        email: '',
+        phone: '',
+        address: '',
+    };
 
     setData(data: Partial<IBuyer>): void {
         this.data = {
@@ -12,30 +17,35 @@ export class Buyer {
         };
     }
 
-    getData(): Partial<IBuyer> {
+    getData(): IBuyer {
         return this.data;
     }
 
     clear(): void {
-        this.data = {};
+        this.data = {
+            payment: null,
+            email: '',
+            phone: '',
+            address: '',
+        };
     }
 
-    validate(): Partial<Record<keyof IBuyer, string>> {
-        const errors: Partial<Record<keyof IBuyer, string>> = {};
+    validate(): IBuyerValidationErr {
+        const errors: IBuyerValidationErr = {};
 
         if (!this.data.payment) {
             errors.payment = 'Не выбран вид оплаты';
         }
 
-        if (!this.data.address) {
+        if (!this.data.address.trim()) {
             errors.address = 'Укажите адрес доставки';
         }
 
-        if (!this.data.email) {
+        if (!this.data.email.trim()) {
             errors.email = 'Укажите email';
         }
 
-        if (!this.data.phone) {
+        if (!this.data.phone.trim()) {
             errors.phone = 'Укажите телефон';
         }
 
