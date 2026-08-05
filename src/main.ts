@@ -8,6 +8,9 @@ import { apiProducts } from './utils/data';
 import { Api } from './components/base/Api';
 import { WebLarekApi } from './components/API/WebLarekApi';
 
+//added review 2
+import { API_URL } from './utils/constants';
+
 // ====================
 // Проверка Catalog
 // ====================
@@ -120,8 +123,8 @@ console.log(
     buyer.getData()
 );
 
-//added step4
-const api = new Api('https://larek-api.nomoreparties.co/api/weblarek');
+//added step4 (corrected review 2)
+const api = new Api(API_URL);
 
 const webLarekApi = new WebLarekApi(api);
 
