@@ -1,139 +1,472 @@
 import './scss/styles.scss';
 
-//added
+import { IBuyer, IOrderRequest } from './types';
+
 import { Catalog } from './components/Models/Catalog';
 import { Basket } from './components/Models/Basket';
 import { Buyer } from './components/Models/Buyer';
-import { apiProducts } from './utils/data';
+
 import { Api } from './components/base/Api';
+import { EventEmitter } from './components/base/Events';
 import { WebLarekApi } from './components/API/WebLarekApi';
 
-//added review 2
-import { API_URL } from './utils/constants';
+import { API_URL, CDN_URL } from './utils/constants';
+import { ensureElement, cloneTemplate } from './utils/utils';
 
-// ====================
-// Проверка Catalog
-// ====================
+import { Header } from './components/View/Header';
+import { Gallery } from './components/View/Gallery';
+import { CardCatalog } from './components/View/CardCatalog';
+import { CardPreview } from './components/View/CardPreview';
+import { CardBasket } from './components/View/CardBasket';
+import { Basket as BasketView } from './components/View/Basket';
+import { OrderForm } from './components/View/OrderForm';
+import { ContactsForm } from './components/View/ContactsForm';
+import { Modal } from './components/View/Modal';
+import { Success } from './components/View/Success';
 
-const catalog = new Catalog();
 
-catalog.setProducts(apiProducts.items);
+// ==================================================
+// БРОКЕР СОБЫТИЙ
+// ==================================================
 
-console.log('Массив товаров из каталога:', catalog.getProducts());
+const events = new EventEmitter();
 
-const firstProduct = apiProducts.items[0];
+// ==================================================
+// API
+// ==================================================
 
-console.log(
-    'Товар по ID:',
-    catalog.getProductById(firstProduct.id)
-);
-
-catalog.setSelectedProduct(firstProduct);
-
-console.log(
-    'Выбранный товар:',
-    catalog.getSelectedProduct()
-);
-
-// ====================
-// Проверка Basket
-// ====================
-
-const basket = new Basket();
-
-basket.addItem(apiProducts.items[0]);
-basket.addItem(apiProducts.items[1]);
-
-console.log('Товары в корзине:', basket.getItems());
-
-console.log('Количество товаров в корзине:', basket.getCount());
-
-console.log(
-    'Есть ли товар в корзине:',
-    basket.hasItem(apiProducts.items[0].id)
-);
-
-console.log(
-    'Общая стоимость корзины:',
-    basket.getTotalPrice()
-);
-
-basket.removeItem(apiProducts.items[0]);
-
-console.log(
-    'Корзина после удаления товара:',
-    basket.getItems()
-);
-
-basket.clear();
-
-console.log(
-    'Корзина после очистки:',
-    basket.getItems()
-);
-
-// ====================
-// Проверка Buyer
-// ====================
-
-const buyer = new Buyer();
-
-buyer.setData({
-    address: 'Paris'
-});
-
-console.log(
-    'Данные покупателя после добавления адреса:',
-    buyer.getData()
-);
-
-buyer.setData({
-    payment: 'card'
-});
-
-console.log(
-    'Данные покупателя после выбора оплаты:',
-    buyer.getData()
-);
-
-console.log(
-    'Ошибки валидации покупателя:',
-    buyer.validate()
-);
-
-buyer.setData({
-    email: 'test@example.com',
-    phone: '+81 90 1234 5678'
-});
-
-console.log(
-    'Данные покупателя после заполнения формы:',
-    buyer.getData()
-);
-
-console.log(
-    'Ошибки валидации после заполнения:',
-    buyer.validate()
-);
-
-buyer.clear();
-
-console.log(
-    'Данные покупателя после очистки:',
-    buyer.getData()
-);
-
-//added step4 (corrected review 2)
 const api = new Api(API_URL);
-
 const webLarekApi = new WebLarekApi(api);
+
+// ==================================================
+// МОДЕЛИ ДАННЫХ
+// ==================================================
+
+const catalog = new Catalog(events);
+const basket = new Basket(events);
+const buyer = new Buyer(events);
+
+
+// ==================================================
+// ОСНОВНЫЕ КОМПОНЕНТЫ VIEW
+// ==================================================
+
+const header = new Header(
+    events,
+    ensureElement<HTMLElement>('.header')
+);
+
+const gallery = new Gallery(
+    ensureElement<HTMLElement>('.gallery')
+);
+
+const modal = new Modal(
+    events,
+    ensureElement<HTMLElement>('#modal-container')
+);
+
+
+// ==================================================
+// КОМПОНЕНТЫ ИЗ TEMPLATE
+// ==================================================
+
+const basketView = new BasketView(
+    events,
+    cloneTemplate<HTMLElement>('#basket')
+);
+
+const orderForm = new OrderForm(
+    events,
+    cloneTemplate<HTMLFormElement>('#order')
+);
+
+const contactsForm = new ContactsForm(
+    events,
+    cloneTemplate<HTMLFormElement>('#contacts')
+);
+
+const success = new Success(
+    events,
+    cloneTemplate<HTMLElement>('#success')
+);
+
+
+// ==================================================
+// ВСПОМОГАТЕЛЬНАЯ ФУНКЦИЯ ПОДГОТОВКИ КОРЗИНЫ
+// ==================================================
+
+const renderBasket = () => {
+    const products = basket.getItems();
+
+    const items = products.map((product, index) => {
+        const card = new CardBasket(
+            events,
+            cloneTemplate<HTMLElement>('#card-basket'),
+            product.id
+        );
+
+        return card.render({
+            title: product.title,
+            price: product.price,
+            index: index + 1
+        });
+    });
+
+    basketView.render({
+        items,
+        total: basket.getTotalPrice(),
+        buttonDisabled: basket.getCount() === 0
+    });
+};
+
+
+// ==================================================
+// СОБЫТИЯ МОДЕЛИ CATALOG
+// ==================================================
+
+// Изменился массив товаров каталога
+events.on('catalog:changed', () => {
+    const products = catalog.getProducts();
+
+    const cards = products.map((product) => {
+        const card = new CardCatalog(
+            events,
+            cloneTemplate<HTMLElement>('#card-catalog'),
+            product.id
+        );
+
+        return card.render({
+            title: product.title,
+            price: product.price,
+            image: `${CDN_URL}${product.image}`,
+            category: product.category
+        });
+    });
+
+    gallery.render({
+        catalog: cards
+    });
+});
+
+
+// Изменился выбранный товар
+events.on('catalog:selected', () => {
+    const product = catalog.getSelectedProduct();
+
+    if (!product) {
+        return;
+    }
+
+    const preview = new CardPreview(
+        events,
+        cloneTemplate<HTMLElement>('#card-preview'),
+        product.id
+    );
+
+    const isInBasket = basket.hasItem(product.id);
+
+    preview.render({
+        title: product.title,
+        price: product.price,
+        image: `${CDN_URL}${product.image}`,
+        category: product.category,
+        description: product.description,
+        buttonDisabled: product.price === null || isInBasket,
+        buttonText: isInBasket
+            ? 'Уже в корзине'
+            : 'В корзину'
+    });
+
+    modal.render({
+        content: preview.render()
+    });
+
+    modal.open();
+});
+
+
+// ==================================================
+// СОБЫТИЯ МОДЕЛИ BASKET
+// ==================================================
+
+// Изменилось содержимое корзины
+events.on('basket:changed', () => {
+    header.render({
+        counter: basket.getCount()
+    });
+
+    renderBasket();
+});
+
+
+// ==================================================
+// СОБЫТИЯ МОДЕЛИ BUYER
+// ==================================================
+
+// Изменились данные покупателя
+events.on('buyer:changed', () => {
+    const data = buyer.getData();
+    const errors = buyer.validate();
+
+    const orderErrors = [
+        errors.payment,
+        errors.address
+    ].filter(Boolean);
+
+    const contactsErrors = [
+        errors.email,
+        errors.phone
+    ].filter(Boolean);
+
+    orderForm.render({
+        payment: data.payment,
+        address: data.address,
+        valid: orderErrors.length === 0,
+        errors: orderErrors.join('; ')
+    });
+
+    contactsForm.render({
+        email: data.email,
+        phone: data.phone,
+        valid: contactsErrors.length === 0,
+        errors: contactsErrors.join('; ')
+    });
+});
+
+
+// ==================================================
+// СОБЫТИЯ VIEW — КАТАЛОГ И КАРТОЧКИ
+// ==================================================
+
+// Пользователь выбрал карточку товара
+events.on<{ id: string }>('card:select', ({ id }) => {
+    const product = catalog.getProductById(id);
+
+    if (product) {
+        catalog.setSelectedProduct(product);
+    }
+});
+
+
+// Пользователь нажал кнопку «В корзину»
+events.on<{ id: string }>('card:add', ({ id }) => {
+    const product = catalog.getProductById(id);
+
+    if (product) {
+        basket.addItem(product);
+        modal.close();
+    }
+});
+
+
+// ==================================================
+// СОБЫТИЯ VIEW — КОРЗИНА
+// ==================================================
+
+// Пользователь открыл корзину
+events.on('basket:open', () => {
+    renderBasket();
+
+    modal.render({
+        content: basketView.render()
+    });
+
+    modal.open();
+});
+
+
+// Пользователь удалил товар из корзины
+events.on<{ id: string }>('basket:item-delete', ({ id }) => {
+    const product = basket.getItems().find(
+        (item) => item.id === id
+    );
+
+    if (product) {
+        basket.removeItem(product);
+    }
+});
+
+
+// ==================================================
+// СОБЫТИЯ VIEW — ПЕРВЫЙ ЭТАП ОФОРМЛЕНИЯ
+// ==================================================
+
+// Пользователь нажал кнопку «Оформить»
+events.on('order:open', () => {
+    const data = buyer.getData();
+    const errors = buyer.validate();
+
+    const formErrors = [
+        errors.payment,
+        errors.address
+    ].filter(Boolean);
+
+    orderForm.render({
+        payment: data.payment,
+        address: data.address,
+        valid: formErrors.length === 0,
+        errors: formErrors.join('; ')
+    });
+
+    modal.render({
+        content: orderForm.render()
+    });
+
+    modal.open();
+});
+
+
+// Пользователь выбрал способ оплаты
+events.on<{
+    field: 'payment';
+    value: IBuyer['payment'];
+}>(
+    'order.payment:change',
+    ({ value }) => {
+        buyer.setData({
+            payment: value
+        });
+    }
+);
+
+
+// Пользователь изменил адрес доставки
+events.on<{
+    field: 'address';
+    value: string;
+}>(
+    'order.address:change',
+    ({ value }) => {
+        buyer.setData({
+            address: value
+        });
+    }
+);
+
+
+// ==================================================
+// СОБЫТИЯ VIEW — ВТОРОЙ ЭТАП ОФОРМЛЕНИЯ
+// ==================================================
+
+// Пользователь нажал кнопку «Далее»
+events.on('order:submit', () => {
+    const data = buyer.getData();
+    const errors = buyer.validate();
+
+    const formErrors = [
+        errors.email,
+        errors.phone
+    ].filter(Boolean);
+
+    contactsForm.render({
+        email: data.email,
+        phone: data.phone,
+        valid: formErrors.length === 0,
+        errors: formErrors.join('; ')
+    });
+
+    modal.render({
+        content: contactsForm.render()
+    });
+
+    modal.open();
+});
+
+
+// Пользователь изменил email
+events.on<{
+    field: 'email';
+    value: string;
+}>(
+    'contacts.email:change',
+    ({ value }) => {
+        buyer.setData({
+            email: value
+        });
+    }
+);
+
+
+// Пользователь изменил телефон
+events.on<{
+    field: 'phone';
+    value: string;
+}>(
+    'contacts.phone:change',
+    ({ value }) => {
+        buyer.setData({
+            phone: value
+        });
+    }
+);
+
+
+// ==================================================
+// ОПЛАТА / ЗАВЕРШЕНИЕ ОФОРМЛЕНИЯ ЗАКАЗА
+// ==================================================
+
+events.on('contacts:submit', () => {
+    const buyerData = buyer.getData();
+
+    const order: IOrderRequest = {
+        ...buyerData,
+        items: basket.getItems().map(
+            (item) => item.id
+        ),
+        total: basket.getTotalPrice()
+    };
+
+    webLarekApi.createOrder(order)
+        .then((response) => {
+            success.render({
+                total: response.total
+            });
+
+            modal.render({
+                content: success.render()
+            });
+
+            modal.open();
+
+            basket.clear();
+            buyer.clear();
+        })
+        .catch((error: unknown) => {
+            console.error(
+                'Ошибка оформления заказа:',
+                error
+            );
+        });
+});
+
+
+// ==================================================
+// СОБЫТИЯ MODAL / SUCCESS
+// ==================================================
+
+// Пользователь закрыл модальное окно
+events.on('modal:close', () => {
+    modal.close();
+});
+
+
+// Пользователь закрыл окно успешного заказа
+events.on('success:close', () => {
+    modal.close();
+});
+
+
+// ==================================================
+// ПЕРВОНАЧАЛЬНАЯ ЗАГРУЗКА ПРИЛОЖЕНИЯ
+// ==================================================
 
 webLarekApi.getProducts()
     .then((response) => {
         catalog.setProducts(response.items);
-
-        console.log('Каталог:', catalog.getProducts());
     })
-    .catch((error) => {
-        console.error('Ошибка получения каталога:', error);
+    .catch((error: unknown) => {
+        console.error(
+            'Ошибка получения каталога:',
+            error
+        );
     });
