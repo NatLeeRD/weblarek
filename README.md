@@ -314,9 +314,10 @@ Component<T>
 ├── Success
 │
 ├── Card
-│   ├── CardCatalog
-│   ├── CardPreview
-│   └── CardBasket
+│   ├── CardBasket
+│   └── CardWithImage
+│       ├── CardCatalog
+│       └── CardPreview
 │
 └── Form
     ├── OrderForm
@@ -377,10 +378,23 @@ Component<T>
 
 ### Карточки товара
 
+Для отображения товаров в приложении используются несколько видов карточек. Общая функциональность вынесена в базовый класс `Card`, а функциональность изображения и категории — в промежуточный класс `CardWithImage`.
+
+Иерархия классов карточек:
+
+Card
+├── CardBasket
+└── CardWithImage
+    ├── CardCatalog
+    └── CardPreview
+
+Такое разделение позволяет базовому классу `Card` содержать только поля и методы, общие для всех карточек товара. Класс `CardWithImage` содержит функциональность, общую только для карточек каталога и карточки предпросмотра (превью).
+
 ### Класс `Card`
 
 Базовый класс всех карточек товара.
 Наследуется от `Component<T>`.
+Содержит только функциональность, общую для всех видов карточек: отображение названия и цены товара.
 
 Общий тип данных:
 type TCardData = Pick<IProduct, 'title' | 'price'>;
@@ -399,88 +413,161 @@ type TCardData = Pick<IProduct, 'title' | 'price'>;
 `set title(value: string)` — устанавливает название товара.
 `set price(value: number | null)` — устанавливает стоимость товара.
 Если значение `price` равно `null`, отображается текст `Бесценно`.
-`Card` не хранит данные товара и не обрабатывает пользовательские действия.
+Класс `Card` не хранит данные товара, не содержит элементов изображения или категории и не обрабатывает пользовательские действия.
 
-### Класс `CardCatalog`
 
-Карточка товара в каталоге.
-Использует шаблон `#card-catalog`.
-Наследуется от `Card<TCardCatalogData>`.
-Тип `TCardCatalogData` создаётся на основе `TCardData` и части `IProduct`:
-type TCardCatalogData =
+### Класс `CardWithImage`
+Промежуточный базовый класс для карточек товара, содержащих изображение и категорию. 
+Используется как родительский класс для `CardCatalog` и `CardPreview`.
+Наследуется от `Card<T>`.
+Класс является обобщённым и позволяет дочерним классам расширять общий тип дополнительными данными.
+
+Тип данных:
+type TCardWithImageData =
     TCardData &
     Pick<IProduct, 'image' | 'category'>;
 
 Конструктор
 
-`constructor(events: IEvents, container: HTMLElement, productId: string)`.
-`events` — брокер событий.
-`container` — DOM-элемент карточки.
-`productId` — идентификатор товара, используемый внутри обработчика клика. Он не сохраняется в поле класса.
+`constructor(container: HTMLElement)` — принимает корневой DOM-элемент карточки и передаёт его в конструктор родительского класса `Card`.
+В конструкторе находятся и сохраняются DOM-элементы изображения и категории.
 
 Поля класса
 
-`imageElement: HTMLImageElement` — элемент `.card__image`.
-`categoryElement: HTMLElement` — элемент `.card__category`.
+`imageElement: HTMLImageElement` — DOM-элемент `.card__image`, содержащий изображение товара.
+`categoryElement: HTMLElement` — DOM-элемент `.card__category`, содержащий название категории товара.
 
 Методы/Сеттеры
 
-`set image(value: string)` — устанавливает изображение товара.
-`set category(value: string)` — устанавливает название категории и соответствующий CSS-модификатор из объекта `categoryMap`.
+`set image(value: string)` — устанавливает изображение товара с помощью унаследованного метода `setImage()`.
+`set category(value: string)` — устанавливает текст категории товара и соответствующий CSS-модификатор.
+Для определения CSS-модификатора используется объект `categoryMap` из файла `src/utils/constants.ts`.
+Перед установкой нового модификатора ранее установленные классы категорий удаляются.
+Класс `CardWithImage` наследует от `Card` сеттеры `title` и `price`.
+Таким образом, общими отображаемыми данными `CardWithImage` являются:
+- `title`;
+- `price`;
+- `image`;
+- `category`.
+Класс не содержит обработчиков пользовательских действий. Обработка действий реализуется конкретными дочерними компонентами.
+
+
+### Класс `CardCatalog`
+
+Карточка товара в каталоге.
+Использует шаблон `#card-catalog`.
+Наследуется от `CardWithImage<TCardCatalogData>`.
+
+Поскольку все необходимые для карточки каталога данные уже входят в тип `TCardWithImageData`, тип карточки каталога может быть определён следующим образом:
+type TCardCatalogData = TCardWithImageData;
+
+Таким образом, карточка каталога использует следующие данные:
+
+- `title`;
+- `price`;
+- `image`;
+- `category`.
+
+Конструктор
+
+`constructor(events: IEvents, container: HTMLElement, productId: string)`
+`events` — брокер событий приложения.
+`container` — DOM-элемент карточки.
+`productId` — идентификатор товара, который используется обработчиком клика при генерации события. Значение не сохраняется в поле класса.
+Слушатель события устанавливается один раз в конструкторе на корневой элемент карточк
+
+Поля класса
+
+Собственных DOM-полей для отображения данных класс не добавляет.
+Элементы `titleElement` и `priceElement` наследуются от `Card`.
+Элементы `imageElement` и `categoryElement` наследуются от `CardWithImage`.
+
+Методы/Сеттеры
+
+Собственных сеттеров отображения данных класс не содержит.
+
+От `Card` наследуются:
+- `set title(value: string)`;
+- `set price(value: number | null)`.
+
+От `CardWithImage` наследуются:
+- `set image(value: string)`;
+- `set category(value: string)`.
+
+Унаследованный метод `render()` заполняет карточку переданными данными и возвращает её DOM-элемент.
 
 События
 
-При нажатии на карточку генерируется событие `card:select`.
+При нажатии на карточку компонент генерирует событие card:select
+
 
 Передаваемые данные:
 {
     id: string;
 }
+
+В качестве id используется переданный в конструктор productId.
+Идентификатор товара не сохраняется в поле компонента.
+Компонент самостоятельно не выбирает товар в Модели и не открывает модальное окно. Эти действия выполняет Презентер после обработки события card:select.
 
 ### Класс `CardPreview`
 
 Полная карточка товара.
 Использует шаблон `#card-preview`.
-Наследуется от `Card<TCardPreviewData>`.
+Наследуется от `CardWithImage<TCardPreviewData>`.
+Компонент `CardPreview` создаётся один раз при инициализации приложения и переиспользуется для отображения разных выбранных товаров.
 
 Тип данных:
+Тип данных расширяет данные `CardWithImage` описанием товара и состоянием кнопки:
 type TCardPreviewData =
-    TCardData &
-    Pick<IProduct, 'image' | 'category' | 'description'> & {
+    TCardWithImageData &
+    Pick<IProduct, 'description'> & {
         buttonDisabled: boolean;
         buttonText: string;
     };
 
+Таким образом, компонент использует следующие данные:
+- `title`;
+- `price`;
+- `image`;
+- `category`;
+- `description`;
+- `buttonDisabled`;
+- `buttonText`
+
 Конструктор
 
-`constructor(events: IEvents, container: HTMLElement, productId: string)`.
-`events` — брокер событий.
+`constructor(events: IEvents, container: HTMLElement)`
+`events` — брокер событий приложения.
 `container` — DOM-элемент карточки.
-`productId` — идентификатор товара, используемый обработчиком кнопки покупки. Не сохраняется в поле класса.
+
+Слушатель устанавливается один раз в конструкторе на кнопку .card__button.
 
 Поля класса
 
-`imageElement: HTMLImageElement` — изображение товара.
-`categoryElement: HTMLElement` — категория товара.
 `descriptionElement: HTMLElement` — описание товара.
 `buttonElement: HTMLButtonElement` — кнопка покупки.
+Элементы названия и цены наследуются от `Card`.
+Элементы изображения и категории наследуются от `CardWithImage`.
 
 Методы/Сеттеры
 
-`set image(value: string)` — устанавливает изображение.
-`set category(value: string)` — устанавливает категорию и CSS-модификатор через `categoryMap`.
+От `Card` наследуются:
+- `set title(value: string)`;
+- `set price(value: number | null)`.
+
+От `CardWithImage` наследуются:
+- `set image(value: string)`;
+- `set category(value: string)`.
+
+Собственные сеттеры `CardPreview`:
 `set description(value: string)` — устанавливает описание.
 `set buttonDisabled(value: boolean)` — управляет состоянием `disabled` кнопки.
 `set buttonText(value: string)` — устанавливает текст кнопки.
 
 События
-
-При нажатии на кнопку покупки генерируется событие `card:add`.
-Передаваемые данные:
-{
-    id: string;
-}
-Компонент самостоятельно не изменяет корзину.
+preview:click
+Генерируется CardPreview при нажатии на кнопку действия. Событие не содержит данных. Презентер получает выбранный товар из Catalog, проверяет его наличие в Basket и в зависимости от состояния добавляет или удаляет товар
 
 ### Класс `CardBasket`
 
@@ -489,10 +576,7 @@ type TCardPreviewData =
 Наследуется от `Card<TCardBasketData>`.
 
 Тип данных:
-type TCardBasketData =
-    TCardData & {
-        index: number;
-    };
+type TCardBasketData = TCardData & {index: number;};
 
 Конструктор
 
@@ -500,15 +584,21 @@ type TCardBasketData =
 `events` — брокер событий.
 `container` — DOM-элемент карточки.
 `productId` — идентификатор товара, используемый обработчиком удаления. Не сохраняется в поле класса.
+Слушатель устанавливается один раз в конструкторе на кнопку .basket__item-delete.
 
 Поля класса
 
 `indexElement: HTMLElement` — элемент `.basket__item-index`.
 `deleteButton: HTMLButtonElement` — кнопка `.basket__item-delete`.
+Элементы `titleElement` и `priceElement` наследуются от Card
 
 Методы/Сеттеры
 
 `set index(value: number)` — устанавливает порядковый номер товара.
+
+От Card наследуются:
+- set title(value: string);
+- set price(value: number | null).
 
 События
 
@@ -517,6 +607,9 @@ type TCardBasketData =
 {
     id: string;
 }
+
+В качестве id используется переданный в конструктор productId.
+Компонент самостоятельно не удаляет товар из Модели корзины. Удаление выполняется Презентером после обработки события basket:item-delete.
 
 ### Корзина
 
@@ -846,18 +939,15 @@ Buyer ──────┘
 Презентер получает товар через `catalog.getProductById()` и вызывает `catalog.setSelectedProduct()`.
 После изменения выбранного товара Модель генерирует `catalog:selected`.
 
-### `card:add`
+### `preview:click`
 
-Генерируется `CardPreview` при нажатии на кнопку покупки.
-Передаваемые данные:
+Презентер получает выбранный товар через `catalog.getSelectedProduct()` и проверяет его наличие в корзине с помощью `basket.hasItem()`.
 
-{
-    id: string;
-}
+-Если товара нет в корзине, Презентер вызывает `basket.addItem()`.
+-Если товар уже находится в корзине, Презентер вызывает `basket.removeItem()`.
+-Если цена товара равна `null`, действие не выполняется.
 
-
-Презентер получает товар из `Catalog` и вызывает `basket.addItem()`.
-После изменения корзины Модель генерирует `basket:changed`, по которому обновляется интерфейс.
+После изменения корзины Модель генерирует событие `basket:changed`, по которому Презентер обновляет `CardPreview`.
 
 ### `basket:item-delete`
 Генерируется `CardBasket` при нажатии на кнопку удаления.
@@ -983,20 +1073,19 @@ events.on(...)
 При выборе карточки View генерирует `card:select`.
 Презентер вызывает `catalog.setSelectedProduct()`.
 Модель генерирует `catalog:selected`.
-При обработке `catalog:selected` создаётся `CardPreview` и открывается `Modal`.
+Компонент `CardPreview` создаётся один раз при инициализации приложения и переиспользуется для отображения выбранных товаров.
+При обработке `catalog:selected` Презентер вызывает вспомогательную функцию `renderPreview()`, которая получает выбранный товар из Модели `Catalog`, проверяет его состояние относительно корзины и обновляет `CardPreview`.
+
+После обновления `CardPreview` передаётся в `Modal`, и модальное окно открывается.
 
 ## Работа Презентера с корзиной
 
-При `card:add` Презентер получает товар и вызывает:
-- basket.addItem(product);
-Непосредственного ререндера после этого не происходит.
-После изменения Модель генерирует `basket:changed`.
-При обработке `basket:changed` обновляются счётчик `Header` и содержимое компонента корзины.
-Для подготовки корзины используется отдельная функция `renderBasket()`.
-Эта функция вызывается только:
-- при обработке `basket:changed`;
-- при обработке `basket:open`.
-Таким образом соблюдается правило, согласно которому View перерисовывается после изменения Модели либо при открытии модального окна.
+При нажатии на кнопку действия в `CardPreview` генерируется событие `preview:click`.
+Презентер получает выбранный товар из Модели `Catalog` с помощью метода `getSelectedProduct()` и проверяет его наличие в корзине.
+Если товара нет в корзине, Презентер вызывает `basket.addItem()`. Если товар уже находится в корзине, вызывается `basket.removeItem()`.
+После изменения содержимого корзины Модель `Basket` генерирует событие `basket:changed`.
+При обработке события `basket:changed` Презентер обновляет счётчик товаров в `Header`, содержимое корзины с помощью вспомогательной функции `renderBasket()` и состояние выбранного товара с помощью функции `renderPreview()`.
+Функция `renderPreview()` проверяет наличие выбранного товара в корзине. Если товар отсутствует в корзине, кнопка отображает текст `В корзину`. Если товар уже добавлен, кнопка отображает текст `Удалить из корзины`. Если цена товара равна `null`, кнопка блокируется и отображает текст `Недоступно`.
 
 ## Работа Презентера с данными покупателя
 
@@ -1066,22 +1155,38 @@ View не хранит введённые значения отдельно от
 
 Если компоненту нужны данные из нескольких Моделей, Презентер объединяет их самостоятельно.
 
-Например, при создании `CardPreview` Презентер получает товар из `Catalog` и отдельно проверяет наличие товара в `Basket`:
-- const isInBasket = basket.hasItem(product.id);
-
-После этого он формирует данные для компонента:
+Например, при обновлении `CardPreview` Презентер получает выбранный товар из `Catalog` и отдельно проверяет его наличие в `Basket`:
+`const isInBasket = basket.hasItem(product.id);`
+Также Презентер проверяет доступность товара для покупки:
+`const isUnavailable = product.price === null;`
+Подготовка данных для `CardPreview` вынесена во вспомогательную функцию `renderPreview()`:
+const renderPreview = () => {
+    const product = catalog.getSelectedProduct();
+    if (!product) {
+        return;
+    }
+    const isInBasket = basket.hasItem(product.id);
+    const isUnavailable = product.price === null;
     preview.render({
         title: product.title,
         price: product.price,
         image: `${CDN_URL}${product.image}`,
         category: product.category,
         description: product.description,
-        buttonDisabled: product.price === null || isInBasket,
-        buttonText: isInBasket
-            ? 'Уже в корзине'
-            : 'В корзину'
+        buttonDisabled: isUnavailable,
+        buttonText: isUnavailable
+            ? 'Недоступно'
+            : isInBasket
+                ? 'Удалить из корзины'
+                : 'В корзину'
     });
+};
 
+Таким образом, один экземпляр CardPreview переиспользуется для отображения разных выбранных товаров.
+Состояние кнопки определяется Презентером на основании данных Моделей Catalog и Basket:
+- В корзину — если доступный товар отсутствует в корзине;
+- Удалить из корзины — если товар уже находится в корзине;
+- Недоступно — если цена товара равна null.
 Модели при этом не изменяются под потребности View.
 
 ## Выбранный подход
@@ -1089,22 +1194,22 @@ View не хранит введённые значения отдельно от
 В проекте используется один Презентер, реализованный непосредственно в `main.ts`.
 Файл `main.ts` является точкой сборки приложения:
 
-```text
 main.ts
 │
 ├── EventEmitter
 ├── API
 ├── Models
 ├── View
+├── вспомогательные функции Презентера
+│   ├── renderPreview()
+│   └── renderBasket()
 ├── обработчики событий Model
 ├── обработчики событий View
-├── подготовка данных
 └── первоначальная загрузка
-```
 
 Такое разделение соответствует архитектуре `MVP`:
 
-```text
+
 Model
 Хранение и изменение данных
         │
@@ -1115,6 +1220,6 @@ Presenter
         ▼
 View
 Отображение и пользовательские действия
-```
+
 
 Модели и компоненты Представления не зависят друг от друга напрямую.

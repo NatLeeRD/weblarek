@@ -1,38 +1,22 @@
 import { IProduct } from '../../types';
-import { categoryMap } from '../../utils/constants';
 import { ensureElement } from '../../utils/utils';
 import { IEvents } from '../base/Events';
-import { Card, TCardData } from './Card';
+import { CardWithImage, TCardWithImageData } from './CardWithImage';
 
-export type TCardPreviewData =
-    TCardData &
-    Pick<IProduct, 'image' | 'category' | 'description'> & {
+export type TCardPreviewData = TCardWithImageData & Pick<IProduct, 'description'> & {
         buttonDisabled: boolean;
         buttonText: string;
     };
 
-export class CardPreview extends Card<TCardPreviewData> {
-    protected imageElement: HTMLImageElement;
-    protected categoryElement: HTMLElement;
+export class CardPreview extends CardWithImage<TCardPreviewData> {
     protected descriptionElement: HTMLElement;
     protected buttonElement: HTMLButtonElement;
 
     constructor(
         protected events: IEvents,
         container: HTMLElement,
-        productId: string
-    ) {
+        ) {
         super(container);
-
-        this.imageElement = ensureElement<HTMLImageElement>(
-            '.card__image',
-            this.container
-        );
-
-        this.categoryElement = ensureElement<HTMLElement>(
-            '.card__category',
-            this.container
-        );
 
         this.descriptionElement = ensureElement<HTMLElement>(
             '.card__text',
@@ -45,30 +29,9 @@ export class CardPreview extends Card<TCardPreviewData> {
         );
 
         this.buttonElement.addEventListener('click', () => {
-            this.events.emit('card:add', {
-                id: productId
+            this.events.emit('preview:click');
             });
-        });
-    }
-
-    set image(value: string) {
-        this.setImage(this.imageElement, value);
-    }
-
-    set category(value: string) {
-        this.categoryElement.textContent = value;
-
-        Object.values(categoryMap).forEach((className) => {
-            this.categoryElement.classList.remove(className);
-        });
-
-        const categoryClass =
-            categoryMap[value as keyof typeof categoryMap];
-
-        if (categoryClass) {
-            this.categoryElement.classList.add(categoryClass);
         }
-    }
 
     set description(value: string) {
         this.descriptionElement.textContent = value;

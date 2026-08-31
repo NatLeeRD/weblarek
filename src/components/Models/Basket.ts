@@ -5,7 +5,7 @@ import { IEvents } from '../base/Events';
 export class Basket {
     private items: IProduct[] = [];
 
-    constructor(protected events: IEvents) {}
+    constructor(protected events: IEvents) { }
 
     getItems(): IProduct[] {
         return this.items;
@@ -19,10 +19,10 @@ export class Basket {
         }
     }
 
-    removeItem(product: IProduct): void {
-        if (this.hasItem(product.id)) {
+    removeItem(id: string): void {
+        if (this.hasItem(id)) {
             this.items = this.items.filter(
-                (item) => item.id !== product.id
+                (item) => item.id !== id
             );
 
             this.events.emit('basket:changed');

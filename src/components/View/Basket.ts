@@ -37,6 +37,8 @@ export class Basket extends Component<IBasketViewData> {
         this.buttonElement.addEventListener('click', () => {
             this.events.emit('order:open');
         });
+
+        this.buttonElement.disabled = true;
     }
 
     set items(items: HTMLElement[]) {

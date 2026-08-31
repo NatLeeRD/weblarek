@@ -27,12 +27,12 @@ export class Modal extends Component<IModalData> {
         );
 
         this.closeButton.addEventListener('click', () => {
-            this.events.emit('modal:close');
+            this.close();
         });
 
         this.container.addEventListener('mousedown', (event) => {
             if (event.target === this.container) {
-                this.events.emit('modal:close');
+                this.close();
             }
         });
 
@@ -41,7 +41,7 @@ export class Modal extends Component<IModalData> {
                 event.key === 'Escape' &&
                 this.container.classList.contains('modal_active')
             ) {
-                this.events.emit('modal:close');
+                this.close();
             }
         });
     }
@@ -57,5 +57,7 @@ export class Modal extends Component<IModalData> {
     close() {
         this.container.classList.remove('modal_active');
         this.contentElement.replaceChildren();
+
+        this.events.emit('modal:close');
     }
 }
